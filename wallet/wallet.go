@@ -2,11 +2,12 @@ package wallet
 
 import (
 	"bytes"
-	"encoding/hex"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	types2 "github.com/elastos/Elastos.ELA.SideChain.ID/types"
+	"github.com/elastos/Elastos.ELA.SideChain.ID/types/base64url"
 	"github.com/elastos/Elastos.ELA/account"
 	"github.com/elastos/Elastos.ELA/core/contract"
 	"math"
@@ -407,44 +408,100 @@ func (wallet *WalletImpl) CreateRegisterDIDTransaction(fromAddress string, fee *
 
 	return tx, nil
 }
-
-func getPayloadDIDInfo(id string, privateKey []byte) *types2.PayloadDIDInfo {
+//23df5f7d0befb743899c22357f774df3d9ce809917b07559c59f12771e67aa31
+// update operation
+func getPayloadDIDInfo(id string, privateKey []byte) *types2.Operation {
 	pBytes := getDIDPayloadBytes(id)
 	info := new(types2.DIDPayloadInfo)
 	json.Unmarshal(pBytes, info)
-	p := &types2.PayloadDIDInfo{
+	p := &types2.Operation{
 		Header: types2.DIDHeaderInfo{
 			Specification: "elastos/did/1.0",
-			Operation:     "create",
+			Operation:     "update",
+			PreviousTxid:  "23df5f7d0befb743899c22357f774df3d9ce809917b07559c59f12771e67aa31",
 		},
-		Payload: hex.EncodeToString(pBytes),
+		Payload: base64url.EncodeToString(pBytes),
 		Proof: types2.DIDProofInfo{
 			Type:               "ECDSAsecp256r1",
-			VerificationMethod: "did:elastos:" + id,
+			VerificationMethod: "#master-key", //"did:elastos:" + id +
 		},
 		PayloadInfo: info,
 	}
-	sign, _ := crypto.Sign(privateKey, p.Data(types2.DIDInfoVersion))
-	p.Proof.Signature = hex.EncodeToString(sign)
+
+	//var payloadDidInfoData types2.PayloadDIDInfoData
+	//payloadDidInfoData.Header = p.Header
+	//payloadDidInfoData.Payload = p.Payload
+	privateKeyHexstr := BytesToHexString(privateKey)
+	fmt.Println(privateKeyHexstr)
+	sign, _ := crypto.Sign(privateKey, p.GetData())
+	p.Proof.Signature = base64.StdEncoding.EncodeToString(sign)
 	return p
 }
+// create operation
+//func getPayloadDIDInfo(id string, privateKey []byte) *types2.Operation {
+//	pBytes := getDIDPayloadBytes(id)
+//	info := new(types2.DIDPayloadInfo)
+//	json.Unmarshal(pBytes, info)
+//	p := &types2.Operation{
+//		Header: types2.DIDHeaderInfo{
+//			Specification: "elastos/did/1.0",
+//			Operation:     "create",
+//		},
+//		Payload: base64url.EncodeToString(pBytes),
+//		Proof: types2.DIDProofInfo{
+//			Type:               "ECDSAsecp256r1",
+//			VerificationMethod: "#master-key", //"did:elastos:" + id +
+//		},
+//		PayloadInfo: info,
+//	}
+//
+//	//var payloadDidInfoData types2.PayloadDIDInfoData
+//	//payloadDidInfoData.Header = p.Header
+//	//payloadDidInfoData.Payload = p.Payload
+//	privateKeyHexstr := BytesToHexString(privateKey)
+//	fmt.Println(privateKeyHexstr)
+//	sign, _ := crypto.Sign(privateKey, p.GetData())
+//	p.Proof.Signature = base64.StdEncoding.EncodeToString(sign)
+//	return p
+//}
 
+//rvuzuXxDeqyURvpfZ8Gy3dc6UVihC5eXcDVp9fSsdpdQ
+//  21b2i2qrm18YCMpuFFYV8gPQ4jg1HwXaXCL5zQhvt58x4
+// zNxoZaZLdackZQNMas7sCkPRHZsJ3BtdjEvM2y5gNvKJ
 func getDIDPayloadBytes(id string) []byte {
+	//return []byte(
+	//	"{" +
+	//		"\"id\": \"did:elastos:" + id + "\"," +
+	//		"\"publicKey\": [{" +
+	//		"\"id\": \"did:elastos:" + id + "\"," +
+	//		"\"type\": \"ECDSAsecp256r1\"," +
+	//		"\"controller\": \"did:elastos:" + id + "\"," +
+	//		"\"publicKeyBase58\": \"zxt6NyoorFUFMXA8mDBULjnuH3v6iNdZm42PyG4c1YdC\"" +
+	//		"}]," +
+	//		"\"authentication\": [" +
+	//		"\"did:elastos:" + id + "\"" +
+	//		"]," +
+	//		"\"authorization\": [" +
+	//		"\"did:elastos:" + id + "\"" +
+	//		"]," +
+	//		"\"expires\": \"2020-08-15T17:00:00Z\"" +
+	//		"}",
+	//)
+
 	return []byte(
 		"{" +
 			"\"id\": \"did:elastos:" + id + "\"," +
 			"\"publicKey\": [{" +
-			"\"id\": \"did:elastos:" + id + "\"," +
+			"\"id\": \"did:elastos:" + id + "#master-key" + "\"," +
 			"\"type\": \"ECDSAsecp256r1\"," +
 			"\"controller\": \"did:elastos:" + id + "\"," +
-			"\"publicKeyBase58\": \"zNxoZaZLdackZQNMas7sCkPRHZsJ3BtdjEvM2y5gNvKJ\"" +
+			"\"publicKeyBase58\": \"zxt6NyoorFUFMXA8mDBULjnuH3v6iNdZm42PyG4c1YdC\"" +
 			"}]," +
-			"\"authentication\": [" +
-			"\"did:elastos:" + id + "\"" +
-			"]," +
 			"\"authorization\": [" +
 			"\"did:elastos:" + id + "\"" +
-			"]}",
+			"]," +
+			"\"expires\": \"2020-08-15T17:00:00Z\"" +
+			"}",
 	)
 }
 
