@@ -6,14 +6,15 @@ import:
 - package: golang.org/x/sys
   repo: https://github.com/golang/sys.git
   vcs: git
-- package: github.com/elastos/Elastos.ELA.Utility
-  subpackages:
-  - common
-  - crypto
+- package: github.com/elastos/Elastos.ELA
+  version: v0.4.3
 - package: github.com/elastos/Elastos.ELA.SideChain
-  subpackages:
-  - core
+  version: release_v0.1.6
 - package: github.com/howeyc/gopass
 - package: github.com/cheggaaa/pb
 - package: github.com/mattn/go-sqlite3
 - package: github.com/urfave/cli
+  version: v1.22.0
+ignore:
+  - golang.org/x/crypto/ssh/terminal
+  - github.com/russross/blackfriday/v2
