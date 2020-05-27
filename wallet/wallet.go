@@ -19,6 +19,7 @@ import (
 	"github.com/elastos/Elastos.ELA.SideChain/types"
 	. "github.com/elastos/Elastos.ELA/common"
 	"github.com/elastos/Elastos.ELA/crypto"
+	"github.com/btcsuite/btcutil/base58"
 )
 
 const (
@@ -54,7 +55,7 @@ type Wallet interface {
 	CreateMultiOutputTransaction(fromAddress string, fee *Fixed64, output ...*Transfer) (*types.Transaction, error)
 	CreateLockedMultiOutputTransaction(fromAddress string, fee *Fixed64, lockedUntil uint32, output ...*Transfer) (*types.Transaction, error)
 	CreateCrossChainTransaction(fromAddress, toAddress, crossChainAddress string, amount, fee *Fixed64) (*types.Transaction, error)
-	CreateRegisterDIDTransaction(fromAddress string, fee *Fixed64) (*types.Transaction, error)
+	CreateRegisterDIDTransaction(fromAddress string, fee *Fixed64, didPublicKey,didPrivateKey,operation,preTxID string) (*types.Transaction, error)
 
 	Sign(name string, password []byte, transaction *types.Transaction) (*types.Transaction, error)
 
@@ -332,22 +333,70 @@ func (wallet *WalletImpl) createCrossChainTransaction(fromAddress string, fee *F
 	return txn, nil
 }
 
-func (wallet *WalletImpl) CreateRegisterDIDTransaction(fromAddress string, fee *Fixed64) (*types.Transaction, error) {
+//func getDIDByPublicKey(publicKey []byte) (*Uint168, error) {
+//	pk, _ := crypto.DecodePoint(publicKey)
+//	redeemScript, err := contract.CreateStandardRedeemScript(pk)
+//	if err != nil {
+//		return nil, err
+//	}
+//	return getDIDHashByCode(redeemScript)
+//}
+//
+//func getDIDHashByCode(code []byte) (*Uint168, error) {
+//	ct1, error := contract.CreateCRDIDContractByCode(code)
+//	if error != nil {
+//		return nil, error
+//	}
+//	return ct1.ToProgramHash(), error
+//}
+//
+//func getDIDAdress(publicKey []byte) (string, error) {
+//	hash, err := getDIDByPublicKey(publicKey)
+//	if err != nil {
+//		return "", err
+//	}
+//	return hash.ToAddress()
+//}
+
+
+func getDid(publicKey string)string  {
+	pkBytes, _ := HexStringToBytes(publicKey)
+	pk, _ := crypto.DecodePoint(pkBytes)
+	code, _ := contract.CreateStandardRedeemScript(pk)
+
+	newCode := make([]byte, len(code))
+	copy(newCode, code)
+	//didCode := append(newCode[:len(newCode)-1], 0xAD)
+	ct1, _ := contract.CreateCRIDContractByCode(newCode)
+	did , _ := ct1.ToProgramHash().ToAddress()
+	return did
+
+	//pkBytes, _ := HexStringToBytes(publicKey)
+	//did , _ := getDIDAdress(pkBytes)
+	//return did
+}
+
+func (wallet *WalletImpl) CreateRegisterDIDTransaction(fromAddress string, fee *Fixed64, didPublicKey,didPrivateKey,operation,preTxID string) (*types.Transaction, error) {
 	// Sync chain block data before create transaction
 	wallet.SyncChainData()
 
-	redeemScript, err := contract.CreateStandardRedeemScript(wallet.GetPublicKey())
-	if err != nil {
-		return nil, err
-	}
 
-	c := &contract.Contract{
-		Code:   redeemScript,
-		Prefix: contract.PrefixCRDID,
-	}
+	//fmt.Println("---------preTxID ",preTxID,"operation ", operation, "didpubkey ",didPublicKey)
+	//redeemScript, err := contract.CreateStandardRedeemScript(wallet.GetPublicKey())
+	//if err != nil {
+	//	return nil, err
+	//}
 
-	id, _ := c.ToProgramHash().ToAddress()
+	//c := &contract.Contract{
+	//	Code:   redeemScript,
+	//	Prefix: contract.PrefixCRDID,
+	//}
 
+	//id, _ := c.ToProgramHash().ToAddress()
+	//id:= getDid(didPublicKey)
+	didPubkey, _ := HexStringToBytes(didPublicKey)
+	base58PubKey := base58.Encode(didPubkey)
+	fmt.Println("--------base58PubKey", base58PubKey)
 	// Check if from address is valid
 	spender, err := Uint168FromAddress(fromAddress)
 	if err != nil {
@@ -368,7 +417,23 @@ func (wallet *WalletImpl) CreateRegisterDIDTransaction(fromAddress string, fee *
 
 	// Create transaction inputs
 	var txInputs []*types.Input // The inputs in transaction
+	index := 0;
+	fmt.Println("totalOutputAmount", totalOutputAmount)
+
 	for _, utxo := range availableUTXOs {
+		if *utxo.Amount <= 0 {
+			continue
+		}
+		index = index +1
+		fmt.Println("index", index)
+		fmt.Println("utxo.Amount", utxo.Amount)
+		//if index == 1{
+		//	fmt.Println("index ==1 continue", index)
+		//	continue
+		//}
+
+		//fmt.Println("----use ", index)
+
 		input := &types.Input{
 			Previous: types.OutPoint{
 				TxID:  utxo.Op.TxID,
@@ -404,23 +469,39 @@ func (wallet *WalletImpl) CreateRegisterDIDTransaction(fromAddress string, fee *
 	}
 
 	tx := wallet.newTransaction(account.RedeemScript, txInputs, txOutputs, types2.RegisterDID)
-	tx.Payload = getPayloadDIDInfo(id, wallet.GetPrivateKey())
+	didprikey , _ := HexStringToBytes(didPrivateKey)
+	tx.Payload = getPayloadDIDInfo(didPublicKey, operation, preTxID, didprikey)
 
 	return tx, nil
 }
+
 //23df5f7d0befb743899c22357f774df3d9ce809917b07559c59f12771e67aa31
 // update operation
-func getPayloadDIDInfo(id string, privateKey []byte) *types2.Operation {
-	pBytes := getDIDPayloadBytes(id)
+func getPayloadDIDInfo(didPublicKey,operation, preTxId string, privateKey []byte) *types2.Operation {
+	id:= getDid(didPublicKey)
+	didPubkey, _ := HexStringToBytes(didPublicKey)
+	base58PubKey := base58.Encode(didPubkey)
+	fmt.Println("--------base58PubKey", base58PubKey)
+	fmt.Println("--------id", id)
+
+
+	pBytes := getDIDPayloadBytes(id, base58PubKey)
+	//fmt.Println("getPayloadDIDInfo id----  ", id)
 	info := new(types2.DIDPayloadInfo)
 	json.Unmarshal(pBytes, info)
+	info.PublicKey[0].PublicKeyBase58 = base58PubKey
+	fmt.Printf("info %+v  \n", info)
+	info2Bytes, err2 :=json.Marshal(info)
+	if err2 != nil {
+		fmt.Println(err2)
+	}
 	p := &types2.Operation{
 		Header: types2.DIDHeaderInfo{
 			Specification: "elastos/did/1.0",
-			Operation:     "update",
-			PreviousTxid:  "23df5f7d0befb743899c22357f774df3d9ce809917b07559c59f12771e67aa31",
+			Operation:     operation,
+			PreviousTxid:  preTxId,
 		},
-		Payload: base64url.EncodeToString(pBytes),
+		Payload: base64url.EncodeToString(info2Bytes),
 		Proof: types2.DIDProofInfo{
 			Type:               "ECDSAsecp256r1",
 			VerificationMethod: "#master-key", //"did:elastos:" + id +
@@ -437,6 +518,7 @@ func getPayloadDIDInfo(id string, privateKey []byte) *types2.Operation {
 	p.Proof.Signature = base64.StdEncoding.EncodeToString(sign)
 	return p
 }
+
 // create operation
 //func getPayloadDIDInfo(id string, privateKey []byte) *types2.Operation {
 //	pBytes := getDIDPayloadBytes(id)
@@ -468,7 +550,7 @@ func getPayloadDIDInfo(id string, privateKey []byte) *types2.Operation {
 //rvuzuXxDeqyURvpfZ8Gy3dc6UVihC5eXcDVp9fSsdpdQ
 //  21b2i2qrm18YCMpuFFYV8gPQ4jg1HwXaXCL5zQhvt58x4
 // zNxoZaZLdackZQNMas7sCkPRHZsJ3BtdjEvM2y5gNvKJ
-func getDIDPayloadBytes(id string) []byte {
+func getDIDPayloadBytes(id, base58PubKey string) []byte {
 	//return []byte(
 	//	"{" +
 	//		"\"id\": \"did:elastos:" + id + "\"," +
@@ -488,6 +570,21 @@ func getDIDPayloadBytes(id string) []byte {
 	//		"}",
 	//)
 
+	//return []byte(
+	//	"{" +
+	//		"\"id\": \"did:elastos:" + id + "\"," +
+	//		"\"publicKey\": [{" +
+	//		"\"id\": \"did:elastos:" + id + "#master-key" + "\"," +
+	//		"\"type\": \"ECDSAsecp256r1\"," +
+	//		"\"controller\": \"did:elastos:" + id + "\"," +
+	//		"\"publicKeyBase58\": \"zxt6NyoorFUFMXA8mDBULjnuH3v6iNdZm42PyG4c1YdC\"" +
+	//		"}]," +
+	//		"\"authorization\": [" +
+	//		"\"did:elastos:" + id + "\"" +
+	//		"]," +
+	//		"\"expires\": \"2020-12-18T15:00:00Z\"" +
+	//		"}",
+	//)
 	return []byte(
 		"{" +
 			"\"id\": \"did:elastos:" + id + "\"," +
@@ -500,7 +597,7 @@ func getDIDPayloadBytes(id string) []byte {
 			"\"authorization\": [" +
 			"\"did:elastos:" + id + "\"" +
 			"]," +
-			"\"expires\": \"2020-08-15T17:00:00Z\"" +
+			"\"expires\": \"2020-12-18T15:00:00Z\"" +
 			"}",
 	)
 }

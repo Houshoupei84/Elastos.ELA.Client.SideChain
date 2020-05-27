@@ -393,6 +393,22 @@ func NewCommand() *cli.Command {
 				Name:  "genesis, g",
 				Usage: "calculate genesis address from genesis block hash",
 			},
+			cli.StringFlag{
+				Name:  "didpubkey, dk",
+				Usage: "the public key of did",
+			},
+			cli.StringFlag{
+				Name:  "operation, op",
+				Usage: "create or update",
+			},
+			cli.StringFlag{
+				Name:  "pretxid, pid",
+				Usage: "PreviousTxid if operation is update",
+			},
+			cli.StringFlag{
+				Name:  "didprivatekey, dpk",
+				Usage: "the private key of did",
+			},
 		},
 		Action: walletAction,
 		OnUsageError: func(c *cli.Context, err error, subCommand bool) error {

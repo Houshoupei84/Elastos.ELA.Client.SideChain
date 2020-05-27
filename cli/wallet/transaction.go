@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	//"github.com/elastos/Elastos.ELA.SideChain.ID/service"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -42,12 +43,21 @@ func createTransaction(name string, password []byte, c *cli.Context, wallet walt
 	var txn *Transaction
 	registerDID := c.String("registerdid")
 	if registerDID != "" {
+
+		didpubkey := c.String("didpubkey")
+		operation := c.String("operation")
+		pretxid := c.String("pretxid")
+		didPrivateKey := c.String("didprivatekey")
+
+
+		//
+		//fmt.Println("pretxid ",pretxid,"operation ", operation, "didpubkey ",didpubkey)
 		err := wallet.Open(name, password)
 		if err != nil {
 			return err
 		}
-
-		txn, err = wallet.CreateRegisterDIDTransaction(from, fee)
+		//, didPublicKey,operation,preTxID string
+		txn, err = wallet.CreateRegisterDIDTransaction(from, fee, didpubkey,didPrivateKey, operation, pretxid)
 		if err != nil {
 			return errors.New("create transaction failed: " + err.Error())
 		}
