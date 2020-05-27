@@ -341,7 +341,7 @@ func (wallet *WalletImpl) createCrossChainTransaction(fromAddress string, fee *F
 //	}
 //	return getDIDHashByCode(redeemScript)
 //}
-//
+
 //func getDIDHashByCode(code []byte) (*Uint168, error) {
 //	ct1, error := contract.CreateCRDIDContractByCode(code)
 //	if error != nil {
@@ -358,8 +358,24 @@ func (wallet *WalletImpl) createCrossChainTransaction(fromAddress string, fee *F
 //	return hash.ToAddress()
 //}
 
+func getDID(publicKey string)string  {
+	pkBytes, _ := HexStringToBytes(publicKey)
+	pk, _ := crypto.DecodePoint(pkBytes)
+	code, _ := contract.CreateStandardRedeemScript(pk)
 
-func getDid(publicKey string)string  {
+	newCode := make([]byte, len(code))
+	copy(newCode, code)
+	didCode := append(newCode[:len(newCode)-1], 0xAD)
+	ct1, _ := contract.CreateCRIDContractByCode(didCode)
+	did , _ := ct1.ToProgramHash().ToAddress()
+	return did
+
+	//pkBytes, _ := HexStringToBytes(publicKey)
+	//did , _ := getDIDAdress(pkBytes)
+	//return did
+}
+
+func getCID(publicKey string)string  {
 	pkBytes, _ := HexStringToBytes(publicKey)
 	pk, _ := crypto.DecodePoint(pkBytes)
 	code, _ := contract.CreateStandardRedeemScript(pk)
@@ -381,7 +397,7 @@ func (wallet *WalletImpl) CreateRegisterDIDTransaction(fromAddress string, fee *
 	wallet.SyncChainData()
 
 
-	//fmt.Println("---------preTxID ",preTxID,"operation ", operation, "didpubkey ",didPublicKey)
+	fmt.Println("---------preTxID ",preTxID,"operation ", operation, "didpubkey ",didPublicKey, "didPrivateKey", didPrivateKey)
 	//redeemScript, err := contract.CreateStandardRedeemScript(wallet.GetPublicKey())
 	//if err != nil {
 	//	return nil, err
@@ -470,6 +486,9 @@ func (wallet *WalletImpl) CreateRegisterDIDTransaction(fromAddress string, fee *
 
 	tx := wallet.newTransaction(account.RedeemScript, txInputs, txOutputs, types2.RegisterDID)
 	didprikey , _ := HexStringToBytes(didPrivateKey)
+	if didPrivateKey == ""{
+		didprikey = wallet.GetPrivateKey()
+	}
 	tx.Payload = getPayloadDIDInfo(didPublicKey, operation, preTxID, didprikey)
 
 	return tx, nil
@@ -478,8 +497,9 @@ func (wallet *WalletImpl) CreateRegisterDIDTransaction(fromAddress string, fee *
 //23df5f7d0befb743899c22357f774df3d9ce809917b07559c59f12771e67aa31
 // update operation
 func getPayloadDIDInfo(didPublicKey,operation, preTxId string, privateKey []byte) *types2.Operation {
-	id:= getDid(didPublicKey)
 	didPubkey, _ := HexStringToBytes(didPublicKey)
+	id:= getDID(didPublicKey)
+
 	base58PubKey := base58.Encode(didPubkey)
 	fmt.Println("--------base58PubKey", base58PubKey)
 	fmt.Println("--------id", id)
