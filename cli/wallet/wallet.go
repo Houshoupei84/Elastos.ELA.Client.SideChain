@@ -241,6 +241,12 @@ func walletAction(context *cli.Context) {
 				fmt.Println("error:", err)
 				os.Exit(701)
 			}
+		case "deactivate":
+			if err := createDeactivateDIDTransaction(name, []byte(pass), context, wallet); err != nil {
+				fmt.Println("error:", err)
+				os.Exit(701)
+			}
+
 		case "sign":
 			if err := signTransaction(name, []byte(pass), context, wallet); err != nil {
 				fmt.Println("error:", err)
@@ -396,6 +402,10 @@ func NewCommand() *cli.Command {
 			cli.StringFlag{
 				Name:  "didpubkey, dk",
 				Usage: "the public key of did",
+			},
+			cli.StringFlag{
+			Name:  "deactivedid, deactdid",
+			Usage: "the deactivate did",
 			},
 			cli.StringFlag{
 				Name:  "operation, op",

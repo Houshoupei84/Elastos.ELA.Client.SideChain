@@ -56,6 +56,7 @@ type Wallet interface {
 	CreateLockedMultiOutputTransaction(fromAddress string, fee *Fixed64, lockedUntil uint32, output ...*Transfer) (*types.Transaction, error)
 	CreateCrossChainTransaction(fromAddress, toAddress, crossChainAddress string, amount, fee *Fixed64) (*types.Transaction, error)
 	CreateRegisterDIDTransaction(fromAddress string, fee *Fixed64, didPublicKey,didPrivateKey,operation,preTxID string) (*types.Transaction, error)
+	CreateDeactivateDIDTransaction(fromAddress string, fee *Fixed64, didPublicKey,didPrivateKey, deactivateDID string) (*types.Transaction, error)
 
 	Sign(name string, password []byte, transaction *types.Transaction) (*types.Transaction, error)
 
@@ -493,6 +494,98 @@ func (wallet *WalletImpl) CreateRegisterDIDTransaction(fromAddress string, fee *
 
 	return tx, nil
 }
+//fromAddress 从那个地址出钱
+//fee 费用
+//didPublicKey 从这个公钥生出did
+//didPrivateKey did指定的私钥
+//operation     操作类型 deactivate 这个可以取消了。
+func (wallet *WalletImpl) CreateDeactivateDIDTransaction(fromAddress string, fee *Fixed64, didPublicKey,didPrivateKey,
+	deactivateDID string) (*types.Transaction, error){
+	// Sync chain block data before create transaction
+	wallet.SyncChainData()
+
+
+	//fmt.Println("---------preTxID ",preTxID,"operation ", operation, "didpubkey ",didPublicKey, "didPrivateKey", didPrivateKey)
+
+	didPubkey, _ := HexStringToBytes(didPublicKey)
+	base58PubKey := base58.Encode(didPubkey)
+	fmt.Println("--------base58PubKey", base58PubKey)
+	// Check if from address is valid
+	spender, err := Uint168FromAddress(fromAddress)
+	if err != nil {
+		return nil, errors.New(fmt.Sprint("[Wallet], Invalid spender address: ", fromAddress, ", error: ", err))
+	}
+	// Create transaction outputs
+	var totalOutputAmount = Fixed64(0) // The total amount will be spend
+	var txOutputs []*types.Output      // The outputs in transaction
+	totalOutputAmount += *fee          // Add transaction fee
+
+	// Get spender's UTXOs
+	UTXOs, err := wallet.GetAddressUTXOs(spender)
+	if err != nil {
+		return nil, errors.New("[Wallet], Get spender's UTXOs failed")
+	}
+	availableUTXOs := wallet.removeLockedUTXOs(UTXOs) // Remove locked UTXOs
+	availableUTXOs = SortUTXOs(availableUTXOs)        // Sort available UTXOs by value ASC
+
+	// Create transaction inputs
+	var txInputs []*types.Input // The inputs in transaction
+	index := 0;
+	fmt.Println("totalOutputAmount", totalOutputAmount)
+
+	for _, utxo := range availableUTXOs {
+		if *utxo.Amount <= 0 {
+			continue
+		}
+		index = index +1
+		fmt.Println("index", index)
+		fmt.Println("utxo.Amount", utxo.Amount)
+
+
+		input := &types.Input{
+			Previous: types.OutPoint{
+				TxID:  utxo.Op.TxID,
+				Index: utxo.Op.Index,
+			},
+			Sequence: utxo.LockTime,
+		}
+		txInputs = append(txInputs, input)
+		if *utxo.Amount < totalOutputAmount {
+			totalOutputAmount -= *utxo.Amount
+		} else if *utxo.Amount == totalOutputAmount {
+			totalOutputAmount = 0
+			break
+		} else if *utxo.Amount > totalOutputAmount {
+			change := &types.Output{
+				AssetID:     SystemAssetId,
+				Value:       *utxo.Amount - totalOutputAmount,
+				OutputLock:  uint32(0),
+				ProgramHash: *spender,
+			}
+			txOutputs = append(txOutputs, change)
+			totalOutputAmount = 0
+			break
+		}
+	}
+	if totalOutputAmount > 0 {
+		return nil, errors.New("[Wallet], Available token is not enough")
+	}
+
+	account, err := wallet.GetAddressInfo(spender)
+	if err != nil {
+		return nil, errors.New("[Wallet], Get spenders account info failed")
+	}
+
+	tx := wallet.newTransaction(account.RedeemScript, txInputs, txOutputs, types2.DeactivateDID)
+	didprikey , _ := HexStringToBytes(didPrivateKey)
+	if didPrivateKey == ""{
+		didprikey = wallet.GetPrivateKey()
+	}
+	tx.Payload = getDeactivateDIDPayload(didPublicKey, deactivateDID, didprikey)
+
+	return tx, nil
+}
+
 
 //23df5f7d0befb743899c22357f774df3d9ce809917b07559c59f12771e67aa31
 // update operation
@@ -503,13 +596,19 @@ func getPayloadDIDInfo(didPublicKey,operation, preTxId string, privateKey []byte
 	base58PubKey := base58.Encode(didPubkey)
 	fmt.Println("--------base58PubKey", base58PubKey)
 	fmt.Println("--------id", id)
-
+	//KEY := "03497366f22500795df7a05b98ecd88584a837b68d553aae6f8c058f13890b8424"
+	//KeyBytes , _:= HexStringToBytes(KEY)
+	//base58PubKeyNEW := base58.Encode(KeyBytes)
+	//fmt.Println("base58PubKeyNEW ", base58PubKeyNEW)
 
 	pBytes := getDIDPayloadBytes(id, base58PubKey)
 	//fmt.Println("getPayloadDIDInfo id----  ", id)
 	info := new(types2.DIDPayloadInfo)
 	json.Unmarshal(pBytes, info)
+	fmt.Printf("info %+v  \n", info)
+
 	info.PublicKey[0].PublicKeyBase58 = base58PubKey
+
 	fmt.Printf("info %+v  \n", info)
 	info2Bytes, err2 :=json.Marshal(info)
 	if err2 != nil {
@@ -524,7 +623,7 @@ func getPayloadDIDInfo(didPublicKey,operation, preTxId string, privateKey []byte
 		Payload: base64url.EncodeToString(info2Bytes),
 		Proof: types2.DIDProofInfo{
 			Type:               "ECDSAsecp256r1",
-			VerificationMethod: "#master-key", //"did:elastos:" + id +
+			VerificationMethod: "#master-key", //master-key test-key
 		},
 		PayloadInfo: info,
 	}
@@ -538,6 +637,52 @@ func getPayloadDIDInfo(didPublicKey,operation, preTxId string, privateKey []byte
 	p.Proof.Signature = base64.StdEncoding.EncodeToString(sign)
 	return p
 }
+
+//23df5f7d0befb743899c22357f774df3d9ce809917b07559c59f12771e67aa31
+// update operation
+//我发个交易， 指定deactivate那个did，以及用这个did的那个public key来验签
+func getDeactivateDIDPayload(didPublicKey, deactivateDID string, privateKey []byte) *types2.DeactivateDIDOptPayload {
+	//didPubkey, _ := HexStringToBytes(didPublicKey)
+	//id:= getDID(didPublicKey)
+	//
+	//base58PubKey := base58.Encode(didPubkey)
+	//fmt.Println("--------base58PubKey", base58PubKey)
+	//fmt.Println("--------id", id)
+
+
+	//pBytes := getDIDPayloadBytes(id, base58PubKey)
+	////fmt.Println("getPayloadDIDInfo id----  ", id)
+	//info := new(types2.DIDPayloadInfo)
+	//json.Unmarshal(pBytes, info)
+	//info.PublicKey[0].PublicKeyBase58 = base58PubKey
+	//fmt.Printf("info %+v  \n", info)
+	//info2Bytes, err2 :=json.Marshal(info)
+	//if err2 != nil {
+	//	fmt.Println(err2)
+	//}
+	p := &types2.DeactivateDIDOptPayload{
+		Header: types2.DIDHeaderInfo{
+			Specification: "elastos/did/1.0",
+			Operation:     "deactivate",
+			PreviousTxid:  "",  //将来这个可能要删除
+		},
+		Payload: deactivateDID,
+		Proof: types2.DIDProofInfo{
+			Type:               "ECDSAsecp256r1",
+			VerificationMethod: "#test-key", //"did:elastos:" + id +
+		},
+	}
+
+	//var payloadDidInfoData types2.PayloadDIDInfoData
+	//payloadDidInfoData.Header = p.Header
+	//payloadDidInfoData.Payload = p.Payload
+	privateKeyHexstr := BytesToHexString(privateKey)
+	fmt.Println(privateKeyHexstr)
+	sign, _ := crypto.Sign(privateKey, p.GetData())
+	p.Proof.Signature = base64.StdEncoding.EncodeToString(sign)
+	return p
+}
+
 
 // create operation
 //func getPayloadDIDInfo(id string, privateKey []byte) *types2.Operation {
@@ -605,6 +750,26 @@ func getDIDPayloadBytes(id, base58PubKey string) []byte {
 	//		"\"expires\": \"2020-12-18T15:00:00Z\"" +
 	//		"}",
 	//)
+
+	/*
+	return []byte(
+			"{" +
+				"\"id\": \"did:elastos:" + id + "\"," +
+				"\"publicKey\": [{" +
+				"\"id\": \"did:elastos:" + id + "#master-key" + "\"," +
+				"\"type\": \"ECDSAsecp256r1\"," +
+				"\"controller\": \"did:elastos:" + id + "\"," +
+				"\"publicKeyBase58\": \"zxt6NyoorFUFMXA8mDBULjnuH3v6iNdZm42PyG4c1YdC\"" +
+				"}]," +
+				"\"authorization\": [" +
+				"\"did:elastos:" + base58PubKey + "\"," +
+				"\"did:elastos:" + id + "\"" +
+				"]," +
+				"\"expires\": \"2020-12-18T15:00:00Z\"" +
+				"}",
+		)
+	*/
+
 	return []byte(
 		"{" +
 			"\"id\": \"did:elastos:" + id + "\"," +
@@ -615,6 +780,12 @@ func getDIDPayloadBytes(id, base58PubKey string) []byte {
 			"\"publicKeyBase58\": \"zxt6NyoorFUFMXA8mDBULjnuH3v6iNdZm42PyG4c1YdC\"" +
 			"}]," +
 			"\"authorization\": [" +
+			"{" +
+			"\"id\": \"did:elastos:" + id + "#test-key" + "\"," +
+			"\"type\": \"ECDSAsecp256r1\"," +
+			"\"controller\": \"did:elastos:" + id + "\"," +
+			"\"publicKeyBase58\": \"ydfwHsD9YjurYPFQ3BdUrYQxHWVTuhiepJYYZeD83M95\"" +
+			"},"+
 			"\"did:elastos:" + id + "\"" +
 			"]," +
 			"\"expires\": \"2020-12-18T15:00:00Z\"" +
