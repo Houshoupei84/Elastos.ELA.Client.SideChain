@@ -125,6 +125,109 @@ func createTransaction(name string, password []byte, c *cli.Context, wallet walt
 	return nil
 }
 
+
+func createCustomizedDIDTransaction(name string, password []byte, c *cli.Context, wallet walt.Wallet) error {
+
+	feeStr := c.String("fee")
+	if feeStr == "" {
+		return errors.New("use --fee to specify transfer fee")
+	}
+
+	fee, err := StringToFixed64(feeStr)
+	if err != nil {
+		return errors.New("invalid transaction fee")
+	}
+
+	from := c.String("from")
+	if from == "" {
+		from, err = SelectAccount(wallet)
+		if err != nil {
+			return err
+		}
+	}
+	var txn *Transaction
+	registerDID := c.String("registerdid")
+	if registerDID != "" {
+
+		didpubkey := c.String("didpubkey")
+		operation := c.String("operation")
+		pretxid := c.String("pretxid")
+		didPrivateKey := c.String("didprivatekey")
+
+		err := wallet.Open(name, password)
+		if err != nil {
+			return err
+		}
+		//, didPublicKey,operation,preTxID string
+		txn, err = wallet.CreateCustomizedDIDTransaction(from, fee, didpubkey,didPrivateKey, operation, pretxid)
+		if err != nil {
+			return errors.New("create transaction failed: " + err.Error())
+		}
+
+		output(0, 0, txn)
+
+		return nil
+	}
+
+	multiOutput := c.String("file")
+	if multiOutput != "" {
+		return createMultiOutputTransaction(c, wallet, multiOutput, from, fee)
+	}
+
+	amountStr := c.String("amount")
+	if amountStr == "" {
+		return errors.New("use --amount to specify transfer amount")
+	}
+
+	amount, err := StringToFixed64(amountStr)
+	if err != nil {
+		return errors.New("invalid transaction amount")
+	}
+
+	var to string
+	standard := c.String("to")
+	deposit := c.String("deposit")
+	withdraw := c.String("withdraw")
+	if deposit != "" {
+		to = config.Params().DepositAddress
+		txn, err = wallet.CreateCrossChainTransaction(from, to, deposit, amount, fee)
+		if err != nil {
+			return errors.New("create transaction failed: " + err.Error())
+		}
+	} else if withdraw != "" {
+		to = walt.DESTROY_ADDRESS
+		txn, err = wallet.CreateCrossChainTransaction(from, to, withdraw, amount, fee)
+		if err != nil {
+			return errors.New("create transaction failed: " + err.Error())
+		}
+	} else if standard != "" {
+		to = standard
+		lockStr := c.String("lock")
+		if lockStr == "" {
+			txn, err = wallet.CreateTransaction(from, to, amount, fee)
+			if err != nil {
+				return errors.New("create transaction failed: " + err.Error())
+			}
+		} else {
+			lock, err := strconv.ParseUint(lockStr, 10, 32)
+			if err != nil {
+				return errors.New("invalid lock height")
+			}
+			txn, err = wallet.CreateLockedTransaction(from, to, amount, fee, uint32(lock))
+			if err != nil {
+				return errors.New("create transaction failed: " + err.Error())
+			}
+		}
+	} else {
+		return errors.New("use --to or --deposit or --withdraw or --registerdid to specify receiver address")
+	}
+
+	output(0, 0, txn)
+
+	return nil
+}
+
+
 //targetdid
 func createDeactivateDIDTransaction(name string, password []byte, c *cli.Context, wallet walt.Wallet) error {
 	fmt.Println("createDeactivateDIDTransaction begin")

@@ -10,6 +10,7 @@ import (
 	"github.com/elastos/Elastos.ELA.SideChain.ID/types/base64url"
 	"github.com/elastos/Elastos.ELA/account"
 	"github.com/elastos/Elastos.ELA/core/contract"
+	"io/ioutil"
 	"math"
 	"math/rand"
 	"strconv"
@@ -57,6 +58,7 @@ type Wallet interface {
 	CreateCrossChainTransaction(fromAddress, toAddress, crossChainAddress string, amount, fee *Fixed64) (*types.Transaction, error)
 	CreateRegisterDIDTransaction(fromAddress string, fee *Fixed64, didPublicKey,didPrivateKey,operation,preTxID string) (*types.Transaction, error)
 	CreateDeactivateDIDTransaction(fromAddress string, fee *Fixed64, didPublicKey,didPrivateKey, deactivateDID string) (*types.Transaction, error)
+	CreateCustomizedDIDTransaction(fromAddress string, fee *Fixed64, didPublicKey,didPrivateKey,operation,preTxID string) (*types.Transaction, error)
 
 	Sign(name string, password []byte, transaction *types.Transaction) (*types.Transaction, error)
 
@@ -393,6 +395,99 @@ func getCID(publicKey string)string  {
 	//return did
 }
 
+func (wallet *WalletImpl) CreateCustomizedDIDTransaction(fromAddress string, fee *Fixed64, didPublicKey,didPrivateKey,
+	operation,preTxID string) (*types.Transaction, error) {
+	// Sync chain block data before create transaction
+	wallet.SyncChainData()
+	fmt.Println(" CreateCustomizedDIDTransaction   ---------preTxID ",preTxID,"operation ", operation, "didpubkey ",didPublicKey, "didPrivateKey", didPrivateKey)
+
+	//id, _ := c.ToProgramHash().ToAddress()
+	//id:= getDid(didPublicKey)
+	didPubkey, _ := HexStringToBytes(didPublicKey)
+	base58PubKey := base58.Encode(didPubkey)
+	fmt.Println("--------base58PubKey", base58PubKey)
+	// Check if from address is valid
+	spender, err := Uint168FromAddress(fromAddress)
+	if err != nil {
+		return nil, errors.New(fmt.Sprint("[Wallet], Invalid spender address: ", fromAddress, ", error: ", err))
+	}
+	// Create transaction outputs
+	var totalOutputAmount = Fixed64(0) // The total amount will be spend
+	var txOutputs []*types.Output      // The outputs in transaction
+	totalOutputAmount += *fee          // Add transaction fee
+
+	// Get spender's UTXOs
+	UTXOs, err := wallet.GetAddressUTXOs(spender)
+	if err != nil {
+		return nil, errors.New("[Wallet], Get spender's UTXOs failed")
+	}
+	availableUTXOs := wallet.removeLockedUTXOs(UTXOs) // Remove locked UTXOs
+	availableUTXOs = SortUTXOs(availableUTXOs)        // Sort available UTXOs by value ASC
+
+	// Create transaction inputs
+	var txInputs []*types.Input // The inputs in transaction
+	//index := 0;
+	fmt.Println("totalOutputAmount", totalOutputAmount)
+
+	for _, utxo := range availableUTXOs {
+		if *utxo.Amount <= 0 {
+			continue
+		}
+		input := &types.Input{
+			Previous: types.OutPoint{
+				TxID:  utxo.Op.TxID,
+				Index: utxo.Op.Index,
+			},
+			Sequence: utxo.LockTime,
+		}
+		txInputs = append(txInputs, input)
+		if *utxo.Amount < totalOutputAmount {
+			totalOutputAmount -= *utxo.Amount
+		} else if *utxo.Amount == totalOutputAmount {
+			totalOutputAmount = 0
+			break
+		} else if *utxo.Amount > totalOutputAmount {
+			change := &types.Output{
+				AssetID:     SystemAssetId,
+				Value:       *utxo.Amount - totalOutputAmount,
+				OutputLock:  uint32(0),
+				ProgramHash: *spender,
+			}
+			txOutputs = append(txOutputs, change)
+			totalOutputAmount = 0
+			break
+		}
+	}
+	if totalOutputAmount > 0 {
+		return nil, errors.New("[Wallet], Available token is not enough")
+	}
+
+	account, err := wallet.GetAddressInfo(spender)
+	if err != nil {
+		return nil, errors.New("[Wallet], Get spenders account info failed")
+	}
+
+	tx := wallet.newTransaction(account.RedeemScript, txInputs, txOutputs, types2.CustomizedDID)
+	//didprikey , _ := HexStringToBytes(didPrivateKey)
+	//if didPrivateKey == ""{
+	//	didprikey = wallet.GetPrivateKey()
+	//}
+
+
+	customizedDIDDocBytes, err := LoadJsonData("./wallet/testdata/customized_did_single_sign.json")
+	if err != nil {
+		fmt.Println(err)
+		return nil,nil
+	}
+	//id1 := "iWFAUYhTa35c1fPe3iCJvihZHx6quumnyms"
+	//privateKey1Str := "41Wji2Bo39wLB6AoUP77ADANaPeDBQLXycp8rzTcgLNW"
+
+	id:= getDID(didPublicKey)
+	tx.Payload = getCustomizedDIDPayloadInfo(id, operation, customizedDIDDocBytes, didPrivateKey)
+
+	return tx, nil
+}
+
 func (wallet *WalletImpl) CreateRegisterDIDTransaction(fromAddress string, fee *Fixed64, didPublicKey,didPrivateKey,operation,preTxID string) (*types.Transaction, error) {
 	// Sync chain block data before create transaction
 	wallet.SyncChainData()
@@ -409,10 +504,22 @@ func (wallet *WalletImpl) CreateRegisterDIDTransaction(fromAddress string, fee *
 	//	Prefix: contract.PrefixCRDID,
 	//}
 
+
 	//id, _ := c.ToProgramHash().ToAddress()
 	//id:= getDid(didPublicKey)
+
+	//publicKey := base58.Decode(didPublicKey)
+	//fmt.Println("publicKey---- ", BytesToHexString(publicKey) )
+
+	//id:= getDID(didPublicKey)
+	//fmt.Println("id", id)
+
 	didPubkey, _ := HexStringToBytes(didPublicKey)
 	base58PubKey := base58.Encode(didPubkey)
+
+	id:= getDID(didPublicKey)
+	fmt.Println("id", id)
+
 	fmt.Println("--------base58PubKey", base58PubKey)
 	// Check if from address is valid
 	spender, err := Uint168FromAddress(fromAddress)
@@ -486,11 +593,17 @@ func (wallet *WalletImpl) CreateRegisterDIDTransaction(fromAddress string, fee *
 	}
 
 	tx := wallet.newTransaction(account.RedeemScript, txInputs, txOutputs, types2.RegisterDID)
-	didprikey , _ := HexStringToBytes(didPrivateKey)
-	if didPrivateKey == ""{
-		didprikey = wallet.GetPrivateKey()
-	}
-	tx.Payload = getPayloadDIDInfo(didPublicKey, operation, preTxID, didprikey)
+	//didprikey , _ := HexStringToBytes(didPrivateKey)
+	//if didPrivateKey == ""{
+	//	didprikey = wallet.GetPrivateKey()
+	//}
+	id1DocByts, _ := LoadJsonData("./wallet/testdata/document.compact.json")
+	fmt.Println("id1DocByts", string(id1DocByts))
+	//getOperation
+
+	tx.Payload = getOperation(id, operation, id1DocByts, didPrivateKey)
+
+	//tx.Payload = getPayloadDIDInfo(didPublicKey, operation, preTxID, didprikey)
 
 	return tx, nil
 }
@@ -637,6 +750,65 @@ func getPayloadDIDInfo(didPublicKey,operation, preTxId string, privateKey []byte
 	p.Proof.Signature = base64.StdEncoding.EncodeToString(sign)
 	return p
 }
+
+func getOperation(id string, didOperation string, docBytes []byte, privateKeyStr string) *types2.Operation {
+	//pBytes := getDIDPayloadBytes(id)
+	info := new(types2.DIDPayloadInfo)
+	json.Unmarshal(docBytes, info)
+	p := &types2.Operation{
+		Header: types2.DIDHeaderInfo{
+			Specification: "elastos/did/1.0",
+			Operation:     didOperation,
+		},
+		Payload: base64url.EncodeToString(docBytes),
+		Proof: types2.DIDProofInfo{
+			Type:               "ECDSAsecp256r1",
+			VerificationMethod: "did:elastos:" + id + "#primary",
+		},
+		PayloadInfo: info,
+	}
+	privateKey1 := base58.Decode(privateKeyStr)
+	//privateKey1, _ := common.HexStringToBytes()
+	sign, _ := crypto.Sign(privateKey1, p.GetData())
+	p.Proof.Signature = base64url.EncodeToString(sign)
+	return p
+}
+
+func LoadJsonData(fileName string) ([]byte, error) {
+	fileData, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		return []byte{}, err
+	}
+	return fileData, nil
+
+}
+
+func getCustomizedDIDPayloadInfo(id string, didOperation string, docBytes []byte,
+	privateKeyStr string) *types2.CustomizedDIDOperation {
+	//pBytes := getDIDPayloadBytes(id)
+	info := new(types2.CustomizedDIDPayload)
+	json.Unmarshal(docBytes, info)
+
+	//todo 加上m:n 是否要加pretxid,填充Proof为多个
+	p := &types2.CustomizedDIDOperation{
+		Header: types2.CustomizedDIDHeaderInfo{
+			Specification: "elastos/did/1.0",
+			Operation:     didOperation,
+		},
+		Payload: base64url.EncodeToString(docBytes),
+		Proof: &types2.DIDProofInfo{
+			Type:               "ECDSAsecp256r1",
+			VerificationMethod: "did:elastos:" + id + "#primary",
+		},
+		Doc: info,
+	}
+	privateKey1 := base58.Decode(privateKeyStr)
+	//privateKey1, _ := common.HexStringToBytes()
+	sign, _ := crypto.Sign(privateKey1, p.GetData())
+	p.Proof.(*types2.DIDProofInfo).Signature = base64url.EncodeToString(sign)
+	return p
+}
+
 
 //23df5f7d0befb743899c22357f774df3d9ce809917b07559c59f12771e67aa31
 // update operation
