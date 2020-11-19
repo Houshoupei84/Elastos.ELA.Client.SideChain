@@ -251,6 +251,11 @@ func walletAction(context *cli.Context) {
 				fmt.Println("error:", err)
 				os.Exit(706)
 			}
+		case "verifiableCredential":
+			if err := createVerifiableCredentialTransaction(name, []byte(pass), context, wallet); err != nil {
+				fmt.Println("error:", err)
+				os.Exit(702)
+			}
 		case "sign":
 			if err := signTransaction(name, []byte(pass), context, wallet); err != nil {
 				fmt.Println("error:", err)
