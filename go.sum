@@ -51,8 +51,12 @@ github.com/elastos/Elastos.ELA.SideChain v0.1.9-0.20200925132010-89e9d68f4f40 h1
 github.com/elastos/Elastos.ELA.SideChain v0.1.9-0.20200925132010-89e9d68f4f40/go.mod h1:ONky9lwoOZGIpIVEowryGhTxlxlEwzpGtOnoc5q68Uo=
 github.com/elastos/Elastos.ELA.SideChain v0.1.9-0.20210201075109-20171b4378be h1:jLWTJri17UXGXVd+OTwv/wBw7NdeoNcMrh3b2yXN5GE=
 github.com/elastos/Elastos.ELA.SideChain v0.1.9-0.20210201075109-20171b4378be/go.mod h1:Jf+cYr51wfJ1XJJOJkS1ycNqkBQ6KgALPVQpNybj1P4=
+github.com/elastos/Elastos.ELA.SideChain v0.1.9-0.20210204082526-1e0dc68e6611 h1:xFJdjG7go7QY2Ub9NmlaNKTMeEydN+sKaNc050xfWus=
+github.com/elastos/Elastos.ELA.SideChain v0.1.9-0.20210204082526-1e0dc68e6611/go.mod h1:Jf+cYr51wfJ1XJJOJkS1ycNqkBQ6KgALPVQpNybj1P4=
 github.com/elastos/Elastos.ELA.SideChain.ID v0.1.5 h1:ljEmpGHWsPa3ck4u6D/EzQ+QqD3C2qT112aqrZd1QXI=
 github.com/elastos/Elastos.ELA.SideChain.ID v0.1.5/go.mod h1:nG3K+fjgLA6xaCPj/E9O4ExXlgPCjayCKOktPB83s1g=
+github.com/elastos/Elastos.ELA.SideChain.ID v0.2.1-0.20210204094807-93eeb4681e09 h1:6bZnSH6psETeftXuwNul5FTeT69Bcm7IhI7SisTUAjA=
+github.com/elastos/Elastos.ELA.SideChain.ID v0.2.1-0.20210204094807-93eeb4681e09/go.mod h1:dNZsUpfAeWWrnkpPp66lyLJpr3UkeGpQFpA91xB9C1Y=
 github.com/fatih/color v1.8.0/go.mod h1:3l45GVGkyrnYNl9HoIjnp2NnNWvh6hLAqD8yTfGjnw8=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/golang/protobuf v1.2.0/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=

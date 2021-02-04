@@ -6,8 +6,8 @@ require (
 	github.com/btcsuite/btcutil v1.0.2
 	github.com/cheggaaa/pb v2.0.7+incompatible
 	github.com/elastos/Elastos.ELA v0.6.1-0.20210121081052-d8ad236b396a
-	github.com/elastos/Elastos.ELA.SideChain v0.1.9-0.20210201075109-20171b4378be
-	github.com/elastos/Elastos.ELA.SideChain.ID v0.1.5
+	github.com/elastos/Elastos.ELA.SideChain v0.1.9-0.20210204082526-1e0dc68e6611
+	github.com/elastos/Elastos.ELA.SideChain.ID v0.2.1-0.20210204094807-93eeb4681e09
 	github.com/howeyc/gopass v0.0.0-20190910152052-7cb4b85ec19c
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
 	github.com/urfave/cli v1.22.4
@@ -20,4 +20,4 @@ require (
 	gopkg.in/mattn/go-runewidth.v0 v0.0.4 // indirect
 )
 
-replace github.com/elastos/Elastos.ELA.SideChain.ID => /Users/baidu/Documents/study/go/GOPATH/src/github.com/elastos/Elastos.ELA.SideChain.ID
+//replace github.com/elastos/Elastos.ELA.SideChain.ID => /Users/baidu/Documents/study/go/GOPATH/src/github.com/elastos/Elastos.ELA.SideChain.ID

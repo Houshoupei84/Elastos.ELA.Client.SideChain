@@ -564,7 +564,7 @@ func (wallet *WalletImpl) CreateRegisterDIDTransaction(fromAddress string, fee *
 	wallet.SyncChainData()
 
 
-	fmt.Println("CreateRegisterDIDTransaction ---------preTxID ",preTxID,"operation ", operation, "didpubkey ",didPublicKey, "didPrivateKey", didPrivateKey)
+	fmt.Println("CreateRegisterDIDTransaction ---------utxoindex ",preTxID,"operation ", operation, "didpubkey ",didPublicKey, "didPrivateKey", didPrivateKey)
 	//pubkey1 := base58.Decode(didPublicKey)
 	//fmt.Println("pubkey1", BytesToHexString(pubkey1))
 	//privatepubkey1 := base58.Decode(didPrivateKey)
@@ -597,22 +597,31 @@ func (wallet *WalletImpl) CreateRegisterDIDTransaction(fromAddress string, fee *
 
 	// Create transaction inputs
 	var txInputs []*types.Input // The inputs in transaction
-	index := 0;
-	fmt.Println("totalOutputAmount", totalOutputAmount)
+	utxoIndex,err := StringToFixed64(preTxID)
+	if err != nil {
+		fmt.Println("StringToFixed64 ", err)
+	}
 
-	for _, utxo := range availableUTXOs {
+	fmt.Println("totalOutputAmount", totalOutputAmount)
+	fmt.Println("utxoIndex", *utxoIndex)
+
+	for index, utxo := range availableUTXOs {
 		if *utxo.Amount <= 0 {
 			continue
 		}
-		index = index +1
-		fmt.Println("index", index)
-		fmt.Println("utxo.Amount", utxo.Amount)
-		//if index == 1{
-		//	fmt.Println("index ==1 continue", index)
+		if index < int(*utxoIndex) {
+			continue
+		}
+		//utxoIndex = utxoIndex +1
+
+		fmt.Println("use utxoIndex", index)
+		fmt.Println("use utxo.Amount", utxo.Amount)
+		//if utxoIndex == 1{
+		//	fmt.Println("utxoIndex ==1 continue", utxoIndex)
 		//	continue
 		//}
 
-		//fmt.Println("----use ", index)
+		//fmt.Println("----use ", utxoIndex)
 
 		input := &types.Input{
 			Previous: types.OutPoint{
@@ -980,16 +989,16 @@ func getCustomizedDIDPayloadInfo(id string, didOperation string, docBytes []byte
 			Operation:     didOperation,
 		},
 		Payload: base64url.EncodeToString(docBytes),
-		Proof: &types2.DIDProofInfo{
-			Type:               "ECDSAsecp256r1",
-			VerificationMethod: "did:elastos:" + id + "#primary",
-		},
+		//Proof: &types2.DIDProofInfo{
+		//	Type:               "ECDSAsecp256r1",
+		//	VerificationMethod: "did:elastos:" + id + "#primary",
+		//},
 		Doc: info,
 	}
-	privateKey1 := base58.Decode(privateKeyStr)
+	//privateKey1 := base58.Decode(privateKeyStr)
 	//privateKey1, _ := common.HexStringToBytes()
-	sign, _ := crypto.Sign(privateKey1, p.GetData())
-	p.Proof.(*types2.DIDProofInfo).Signature = base64url.EncodeToString(sign)
+	//sign, _ := crypto.Sign(privateKey1, p.GetData())
+	//p.Proof.(*types2.DIDProofInfo).Signature = base64url.EncodeToString(sign)
 	return p
 }
 
