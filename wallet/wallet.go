@@ -60,6 +60,7 @@ type Wallet interface {
 	CreateDeactivateDIDTransaction(fromAddress string, fee *Fixed64, didPublicKey,didPrivateKey, deactivateDID string) (*types.Transaction, error)
 	CreateCustomizedDIDTransaction(fromAddress string, fee *Fixed64, didPublicKey,didPrivateKey,operation,preTxID string) (*types.Transaction, error)
 	CreateVerifiableCredentialTransaction(fromAddress string, fee *Fixed64, didPublicKey,didPrivateKey,operation,preTxID string) (*types.Transaction, error)
+	CreateDeactivateCustomizedDIDTransaction(fromAddress string, fee *Fixed64, didPublicKey,didPrivateKey, deactivateDID string) (*types.Transaction, error)
 
 	Sign(name string, password []byte, transaction *types.Transaction) (*types.Transaction, error)
 
@@ -663,6 +664,7 @@ func (wallet *WalletImpl) CreateRegisterDIDTransaction(fromAddress string, fee *
 
 	return tx, nil
 }
+
 //fromAddress 从那个地址出钱
 //fee 费用
 //didPublicKey 从这个公钥生出did
@@ -807,6 +809,104 @@ func getPayloadDIDInfo(didPublicKey,operation, preTxId string, privateKey []byte
 	return p
 }
 
+//fromAddress 从那个地址出钱
+//fee 费用
+//didPublicKey 从这个公钥生出did
+//didPrivateKey did指定的私钥
+//operation     操作类型 deactivate 这个可以取消了。
+func (wallet *WalletImpl) CreateDeactivateCustomizedDIDTransaction(fromAddress string, fee *Fixed64, didPublicKey,didPrivateKey,
+	deactivateDID string) (*types.Transaction, error){
+	// Sync chain block data before create transaction
+	wallet.SyncChainData()
+
+
+	//fmt.Println("---------preTxID ",preTxID,"operation ", operation, "didpubkey ",didPublicKey, "didPrivateKey", didPrivateKey)
+
+	//didPubkey, _ := HexStringToBytes(didPublicKey)
+	//base58PubKey := base58.Encode(didPubkey)
+	//fmt.Println("--------base58PubKey", base58PubKey)
+	// Check if from address is valid
+	spender, err := Uint168FromAddress(fromAddress)
+	if err != nil {
+		return nil, errors.New(fmt.Sprint("[Wallet], Invalid spender address: ", fromAddress, ", error: ", err))
+	}
+	// Create transaction outputs
+	var totalOutputAmount = Fixed64(0) // The total amount will be spend
+	var txOutputs []*types.Output      // The outputs in transaction
+	totalOutputAmount += *fee          // Add transaction fee
+
+	// Get spender's UTXOs
+	UTXOs, err := wallet.GetAddressUTXOs(spender)
+	if err != nil {
+		return nil, errors.New("[Wallet], Get spender's UTXOs failed")
+	}
+	availableUTXOs := wallet.removeLockedUTXOs(UTXOs) // Remove locked UTXOs
+	availableUTXOs = SortUTXOs(availableUTXOs)        // Sort available UTXOs by value ASC
+
+	// Create transaction inputs
+	var txInputs []*types.Input // The inputs in transaction
+	index := 0;
+	fmt.Println("totalOutputAmount", totalOutputAmount)
+
+	for _, utxo := range availableUTXOs {
+		if *utxo.Amount <= 0 {
+			continue
+		}
+		index = index +1
+		fmt.Println("index", index)
+		fmt.Println("utxo.Amount", utxo.Amount)
+
+
+		input := &types.Input{
+			Previous: types.OutPoint{
+				TxID:  utxo.Op.TxID,
+				Index: utxo.Op.Index,
+			},
+			Sequence: utxo.LockTime,
+		}
+		txInputs = append(txInputs, input)
+		if *utxo.Amount < totalOutputAmount {
+			totalOutputAmount -= *utxo.Amount
+		} else if *utxo.Amount == totalOutputAmount {
+			totalOutputAmount = 0
+			break
+		} else if *utxo.Amount > totalOutputAmount {
+			change := &types.Output{
+				AssetID:     SystemAssetId,
+				Value:       *utxo.Amount - totalOutputAmount,
+				OutputLock:  uint32(0),
+				ProgramHash: *spender,
+			}
+			txOutputs = append(txOutputs, change)
+			totalOutputAmount = 0
+			break
+		}
+	}
+	if totalOutputAmount > 0 {
+		return nil, errors.New("[Wallet], Available token is not enough")
+	}
+
+	account, err := wallet.GetAddressInfo(spender)
+	if err != nil {
+		return nil, errors.New("[Wallet], Get spenders account info failed")
+	}
+
+	tx := wallet.newTransaction(account.RedeemScript, txInputs, txOutputs, types2.DeactivateCustomizedDIDTxType)
+	//didprikey , _ := HexStringToBytes(didPrivateKey)
+	//if didPrivateKey == ""{
+	//	didprikey = wallet.GetPrivateKey()
+	//}
+	id1 := "iWFAUYhTa35c1fPe3iCJvihZHx6quumnym"
+	fmt.Println("deactivateDID", deactivateDID)
+	fmt.Println("id1", id1)
+	fmt.Println("didPrivateKey", didPrivateKey)
+
+	tx.Payload = getDeactivateCustomizedDIDPayload(deactivateDID, id1, didPrivateKey)
+
+	return tx, nil
+}
+
+
 func getOperation(id string, didOperation string, docBytes []byte, privateKeyStr string) *types2.Operation {
 	//pBytes := getDIDPayloadBytes(id)
 	info := new(types2.DIDPayloadInfo)
@@ -892,6 +992,32 @@ func getCustomizedDIDPayloadInfo(id string, didOperation string, docBytes []byte
 	p.Proof.(*types2.DIDProofInfo).Signature = base64url.EncodeToString(sign)
 	return p
 }
+
+func getDeactivateCustomizedDIDPayload(customizedDID, verifiacationDID string, privateKeyStr string) *types2.DeactivateCustomizedDIDPayload {
+
+	p := &types2.DeactivateCustomizedDIDPayload{
+		Header: types2.CustomizedDIDHeaderInfo{
+			Specification: "elastos/did/1.0",
+			Operation:     "",
+		},
+		Payload: customizedDID,
+		Proof: &types2.DIDProofInfo{
+			Type:               "ECDSAsecp256r1",
+			VerificationMethod: "did:elastos:" + "iWFAUYhTa35c1fPe3iCJvihZHx6quumnym" + "#primary",
+		},
+	}
+	privateKey1 := base58.Decode(privateKeyStr)
+	sign, _ := crypto.Sign(privateKey1, p.GetData())
+	p.Proof.(*types2.DIDProofInfo).Signature = base64url.EncodeToString(sign)
+
+	publickey := base58.Decode("2BhWFosWHCKtBQpsPD3QZUY4NwCzavKdZEh6HfQDhciAY")
+	pubkey, err := crypto.DecodePoint(publickey)
+	fmt.Println(err)
+	err = crypto.Verify(*pubkey, p.GetData(), sign)
+	fmt.Println(err)
+	return p
+}
+
 
 
 //23df5f7d0befb743899c22357f774df3d9ce809917b07559c59f12771e67aa31

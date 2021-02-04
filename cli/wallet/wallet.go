@@ -246,6 +246,11 @@ func walletAction(context *cli.Context) {
 				fmt.Println("error:", err)
 				os.Exit(705)
 			}
+		case "deactivateCustomizedDID":
+			if err := createDeactivateCustomizedDIDTransaction(name, []byte(pass), context, wallet); err != nil {
+				fmt.Println("error:", err)
+				os.Exit(708)
+			}
 		case "customized":
 			if err := createCustomizedDIDTransaction(name, []byte(pass), context, wallet); err != nil {
 				fmt.Println("error:", err)

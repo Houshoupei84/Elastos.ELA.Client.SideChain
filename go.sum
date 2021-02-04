@@ -33,10 +33,14 @@ github.com/elastos/Elastos.ELA v0.5.1/go.mod h1:7pMiHkdCtkdoh1tNRsk15HqVJMjmXwP8
 github.com/elastos/Elastos.ELA v0.5.2-0.20200921102041-5900de400bf4/go.mod h1:8rq9epgVQjlAQ5CZaz3LvXMV0aZIyexUn43klUSj5VQ=
 github.com/elastos/Elastos.ELA v0.6.1-0.20200925033013-b3dba3542f90 h1:bMECiA03Tzw01dC3xl5RYZ8EyKR82dQYUDohT3DJU9c=
 github.com/elastos/Elastos.ELA v0.6.1-0.20200925033013-b3dba3542f90/go.mod h1:8rq9epgVQjlAQ5CZaz3LvXMV0aZIyexUn43klUSj5VQ=
+github.com/elastos/Elastos.ELA v0.6.1-0.20210113064709-b4354bd5f57e/go.mod h1:8rq9epgVQjlAQ5CZaz3LvXMV0aZIyexUn43klUSj5VQ=
+github.com/elastos/Elastos.ELA v0.6.1-0.20210121081052-d8ad236b396a h1:D6ULIRblqWOL2nTwiTWC9ZYYOtqiIjOuJv3P6gSHE1Y=
+github.com/elastos/Elastos.ELA v0.6.1-0.20210121081052-d8ad236b396a/go.mod h1:8rq9epgVQjlAQ5CZaz3LvXMV0aZIyexUn43klUSj5VQ=
 github.com/elastos/Elastos.ELA.SPV v0.0.5-0.20200630162015-42340ac7f822/go.mod h1:jdllOrhnkbWhqSygP+MAqmzOFDEKyycVVbkV6/fDWCI=
 github.com/elastos/Elastos.ELA.SPV v0.0.5-0.20200723063020-e7bf333bba9c/go.mod h1:jdllOrhnkbWhqSygP+MAqmzOFDEKyycVVbkV6/fDWCI=
 github.com/elastos/Elastos.ELA.SPV v0.0.5-0.20200922025252-ba13e06e7b20/go.mod h1:efYumDXXCDTdXvaS3HIUZjQ+DMvUrHDQ+aNsa6eyZlU=
 github.com/elastos/Elastos.ELA.SPV v0.0.5/go.mod h1:efYumDXXCDTdXvaS3HIUZjQ+DMvUrHDQ+aNsa6eyZlU=
+github.com/elastos/Elastos.ELA.SPV v0.0.6-0.20210201070625-e06718aaba5e/go.mod h1:mIvUdk7u/VRjmM2zUcePSKcV/VaMrglEWFwsJGbkUSE=
 github.com/elastos/Elastos.ELA.SideChain v0.1.6 h1:lmM1MWGVBHkGJLxii0D89GY6YUyae56SVyg0/YaX3QU=
 github.com/elastos/Elastos.ELA.SideChain v0.1.6/go.mod h1:QO2DlggKkfno5+9Dry+QKobV1JFGdtUvojDvoOFT0jY=
 github.com/elastos/Elastos.ELA.SideChain v0.1.7 h1:R3C8Me1ayhEMYDyQWr+jPpVf5AtEXnoTaDbgb0xRxG4=
@@ -45,6 +49,8 @@ github.com/elastos/Elastos.ELA.SideChain v0.1.8-0.20200723082447-b46f94544736 h1
 github.com/elastos/Elastos.ELA.SideChain v0.1.8-0.20200723082447-b46f94544736/go.mod h1:gZzPiNBY1PnRvopfcB9+Mdi30d1oYSe/fLsKRdoZnwg=
 github.com/elastos/Elastos.ELA.SideChain v0.1.9-0.20200925132010-89e9d68f4f40 h1:mS7n67Ac/Lan05LALmoP/ibq2+5p4JH6SrX2pwa9Ynk=
 github.com/elastos/Elastos.ELA.SideChain v0.1.9-0.20200925132010-89e9d68f4f40/go.mod h1:ONky9lwoOZGIpIVEowryGhTxlxlEwzpGtOnoc5q68Uo=
+github.com/elastos/Elastos.ELA.SideChain v0.1.9-0.20210201075109-20171b4378be h1:jLWTJri17UXGXVd+OTwv/wBw7NdeoNcMrh3b2yXN5GE=
+github.com/elastos/Elastos.ELA.SideChain v0.1.9-0.20210201075109-20171b4378be/go.mod h1:Jf+cYr51wfJ1XJJOJkS1ycNqkBQ6KgALPVQpNybj1P4=
 github.com/elastos/Elastos.ELA.SideChain.ID v0.1.5 h1:ljEmpGHWsPa3ck4u6D/EzQ+QqD3C2qT112aqrZd1QXI=
 github.com/elastos/Elastos.ELA.SideChain.ID v0.1.5/go.mod h1:nG3K+fjgLA6xaCPj/E9O4ExXlgPCjayCKOktPB83s1g=
 github.com/fatih/color v1.8.0/go.mod h1:3l45GVGkyrnYNl9HoIjnp2NnNWvh6hLAqD8yTfGjnw8=
