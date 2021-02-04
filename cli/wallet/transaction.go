@@ -51,7 +51,7 @@ func createTransaction(name string, password []byte, c *cli.Context, wallet walt
 
 
 		//
-		fmt.Println("###### pretxid ",pretxid,"operation ", operation, "didpubkey ",didpubkey)
+		//fmt.Println("###### pretxid ",pretxid,"operation ", operation, "didpubkey ",didpubkey)
 		err := wallet.Open(name, password)
 		if err != nil {
 			return err

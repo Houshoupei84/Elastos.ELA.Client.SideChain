@@ -564,19 +564,19 @@ func (wallet *WalletImpl) CreateRegisterDIDTransaction(fromAddress string, fee *
 	wallet.SyncChainData()
 
 
-	fmt.Println("CreateRegisterDIDTransaction ---------utxoindex ",preTxID,"operation ", operation, "didpubkey ",didPublicKey, "didPrivateKey", didPrivateKey)
+	//fmt.Println("CreateRegisterDIDTransaction ---------utxoindex ",preTxID,"operation ", operation, "didpubkey ",didPublicKey, "didPrivateKey", didPrivateKey)
 	//pubkey1 := base58.Decode(didPublicKey)
 	//fmt.Println("pubkey1", BytesToHexString(pubkey1))
 	//privatepubkey1 := base58.Decode(didPrivateKey)
 	//fmt.Println("privatepubkey1", BytesToHexString(privatepubkey1))
 
-	didPubkey, _ := HexStringToBytes(didPublicKey)
-	base58PubKey := base58.Encode(didPubkey)
+	//didPubkey, _ := HexStringToBytes(didPublicKey)
+	//base58PubKey := base58.Encode(didPubkey)
 
 	id:= getDID(didPublicKey)
-	fmt.Println("id", id)
+	//fmt.Println("id", id)
 
-	fmt.Println("--------base58PubKey", base58PubKey)
+	//fmt.Println("--------base58PubKey", base58PubKey)
 	// Check if from address is valid
 	spender, err := Uint168FromAddress(fromAddress)
 	if err != nil {
@@ -597,25 +597,34 @@ func (wallet *WalletImpl) CreateRegisterDIDTransaction(fromAddress string, fee *
 
 	// Create transaction inputs
 	var txInputs []*types.Input // The inputs in transaction
-	utxoIndex,err := StringToFixed64(preTxID)
+	utxoIndex,err := strconv.Atoi(preTxID)
 	if err != nil {
 		fmt.Println("StringToFixed64 ", err)
 	}
 
-	fmt.Println("totalOutputAmount", totalOutputAmount)
-	fmt.Println("utxoIndex", *utxoIndex)
+	//fmt.Println("totalOutputAmount", totalOutputAmount)
+	//fmt.Println("param utxoIndex", utxoIndex)
+	//fmt.Println("----------begin----------")
+	//
+	//for index, utxo := range availableUTXOs {
+	//	fmt.Printf(" index %d availableUTXOs %v\n", index, *utxo.Amount)
+	//}
+	//fmt.Println("----------end----------")
 
 	for index, utxo := range availableUTXOs {
 		if *utxo.Amount <= 0 {
+			//fmt.Printf("1 index %d,*utxoIndex %d,Amount %d \n", index, utxoIndex,*utxo.Amount)
 			continue
 		}
-		if index < int(*utxoIndex) {
+		//fmt.Printf("indexFix64 %d,*utxoIndex %d\n",indexFix64, *utxoIndex)
+		if index < utxoIndex {
+			//fmt.Printf("2  index %d,*utxoIndex%d,Amount %d\n",index, utxoIndex,*utxo.Amount)
 			continue
 		}
 		//utxoIndex = utxoIndex +1
 
-		fmt.Println("use utxoIndex", index)
-		fmt.Println("use utxo.Amount", utxo.Amount)
+		//fmt.Println("use wallet index", index)
+		//fmt.Println("use utxo.Amount", utxo.Amount)
 		//if utxoIndex == 1{
 		//	fmt.Println("utxoIndex ==1 continue", utxoIndex)
 		//	continue
@@ -663,11 +672,11 @@ func (wallet *WalletImpl) CreateRegisterDIDTransaction(fromAddress string, fee *
 	//	didprikey = wallet.GetPrivateKey()
 	//}
 	id1DocByts, _ := LoadJsonData("./wallet/testdata/issuer.compact.json")
-	fmt.Println("id1DocByts", string(id1DocByts))
+	//fmt.Println("id1DocByts", string(id1DocByts))
 	//getOperation
 
 	tx.Payload = getOperation(id, operation, id1DocByts, didPrivateKey)
-	fmt.Println("--------tx %+v", tx)
+	//fmt.Println("--------tx %+v", tx)
 
 	//tx.Payload = getPayloadDIDInfo(didPublicKey, operation, preTxID, didprikey)
 
