@@ -674,6 +674,8 @@ func (wallet *WalletImpl) CreateRegisterDIDTransaction(fromAddress string, fee *
 	id1DocByts, _ := LoadJsonData("./wallet/testdata/issuer.compact.json")
 	//fmt.Println("id1DocByts", string(id1DocByts))
 	//getOperation
+	id += preTxID
+	fmt.Println("id ", id)
 
 	tx.Payload = getOperation(id, operation, id1DocByts, didPrivateKey)
 	//fmt.Println("--------tx %+v", tx)
