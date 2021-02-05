@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 
 	"github.com/elastos/Elastos.ELA.Client.SideChain/log"
@@ -89,7 +90,10 @@ func (sync *DataSyncImpl) containAddress(address string) (*Address, bool) {
 
 func (sync *DataSyncImpl) processBlock(block *BlockInfo) {
 	// Add UTXO to wallet address from transaction outputs
-	for _, txInfo := range block.Tx {
+	for index, txInfo := range block.Tx {
+		fmt.Println("processBlock index", index)
+		log.Info("processBlock index", index)
+
 		data, err := json.Marshal(txInfo)
 		if err != nil {
 			log.Error("Resolve transaction info failed")
